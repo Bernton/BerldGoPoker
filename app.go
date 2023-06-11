@@ -63,7 +63,7 @@ type Card struct {
 	Suit Suit
 }
 
-func CardFromIndex(index int) Card {
+func cardFromIndex(index int) Card {
 	rankIndex := index / 4
 	suitIndex := index % 4
 	return Card{Rank: Rank(rankIndex), Suit: Suit(suitIndex)}
@@ -143,13 +143,13 @@ func eval() [HandAmount]int {
 						for card6 := card5 + 1; card6 < CardAmount; card6++ {
 							for card7 := card6 + 1; card7 < CardAmount; card7++ {
 								cards := [7]Card{
-									CardFromIndex(card1),
-									CardFromIndex(card2),
-									CardFromIndex(card3),
-									CardFromIndex(card4),
-									CardFromIndex(card5),
-									CardFromIndex(card6),
-									CardFromIndex(card7),
+									cardFromIndex(card1),
+									cardFromIndex(card2),
+									cardFromIndex(card3),
+									cardFromIndex(card4),
+									cardFromIndex(card5),
+									cardFromIndex(card6),
+									cardFromIndex(card7),
 								}
 
 								handValue := evalCards(cards[:])
