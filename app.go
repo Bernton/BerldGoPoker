@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 )
 
 const CardAmount = 52
@@ -42,6 +43,7 @@ const (
 	Queen
 	King
 	Ace
+	WildRank
 )
 
 type Suit int
@@ -51,6 +53,7 @@ const (
 	Diamonds
 	Hearts
 	Spades
+	WildSuit
 )
 
 type HandValue struct {
@@ -97,9 +100,11 @@ func rankByChar(rankChar rune) (Rank, error) {
 		return King, nil
 	case 'A':
 		return Ace, nil
+	case 'X':
+		return WildRank, nil
 	}
 
-	return Deuce, errors.New("Given character not a valid rank.")
+	return Deuce, errors.New("given character not a valid rank")
 }
 
 func suitByChar(suitChar rune) (Suit, error) {
@@ -112,9 +117,45 @@ func suitByChar(suitChar rune) (Suit, error) {
 		return Hearts, nil
 	case 's':
 		return Spades, nil
+	case 'x':
+		return WildSuit, nil
 	}
 
-	return Clubs, errors.New("Given character not a valid suit.")
+	return Clubs, errors.New("given character not a valid suit")
+}
+
+func inputToCards(input string) ([]Card, error) {
+	if len(input)%2 != 0 {
+		return nil, errors.New("input length not valid")
+	}
+
+	cardAmount := len(input) / 2
+	cards := []Card{}
+
+	for i := 0; i < cardAmount; i++ {
+		rank, rankError := rankByChar(rune(input[i*2]))
+
+		if rankError != nil {
+			return nil, rankError
+		}
+
+		suit, suitError := suitByChar(rune(input[i*2+1]))
+
+		if suitError != nil {
+			return nil, suitError
+		}
+
+		if rank == WildRank && suit != WildSuit ||
+			rank != WildRank && suit == WildSuit {
+			return nil, errors.New("mixed wild combination not valid")
+		}
+
+		if rank != WildRank && suit != WildSuit {
+			cards = append(cards, Card{Rank: rank, Suit: suit})
+		}
+	}
+
+	return cards, nil
 }
 
 func main() {
@@ -123,39 +164,139 @@ func main() {
 		os.Exit(1)
 	}
 
-	if os.Args[1] == "XxXxXxXxXx XxXx" {
-		equities := eval()
-		fmt.Println(equities)
-		return
+	input := os.Args[1]
+
+	if len(input) < 15 {
+		fmt.Println("Input must have at least length 15.")
+		os.Exit(1)
 	}
 
-	os.Exit(1)
+	if (len(input)-15)%5 != 0 {
+		fmt.Println("Input length not valid.")
+		os.Exit(1)
+	}
+
+	boardInput := input[0:10]
+	boardCards, boardError := inputToCards(boardInput)
+
+	if boardError != nil {
+		fmt.Println("Invalid character(s) found.")
+	}
+
+	playersInput := input[10:]
+	playerAmount := len(playersInput) / 5
+
+	playersCards := [][]Card{}
+
+	for i := 0; i < playerAmount; i++ {
+		playerInput := playersInput[(i*5 + 1):(i*5 + 5)]
+		playerCards, playerError := inputToCards(playerInput)
+
+		if playerError != nil {
+			fmt.Println("Invalid character(s) found.")
+		}
+
+		playersCards = append(playersCards, playerCards)
+	}
+
+	wildBoardCards := 5 - len(boardCards)
+
+	wildPlayersCards := 0
+
+	for _, playerCards := range playersCards {
+		wildPlayersCards += 2 - len(playerCards)
+	}
+
+	var equities [][HandAmount]float64
+
+	start := time.Now()
+
+	if wildBoardCards == 5 && wildPlayersCards == 0 {
+		equities = eval_5_2(boardCards, playersCards)
+	} else {
+		fmt.Println("Format not supported.")
+		os.Exit(1)
+	}
+
+	elapsed := time.Since(start)
+
+	totalEquity := 0.0
+
+	for _, equity := range equities[0] {
+		totalEquity += equity
+	}
+
+	equityPerMillisecond := totalEquity / float64(elapsed.Milliseconds())
+
+	fmt.Printf("Time: %d ms\n", elapsed.Milliseconds())
+	fmt.Printf("Speed: %.1f equity/ms\n", equityPerMillisecond)
+	fmt.Printf("%.1f\n", equities)
 }
 
-func eval() [HandAmount]int {
-	handEquities := [HandAmount]int{}
+// func evalGeneral(boardCards [5]Card, playersCards []Card)
+// {
 
-	for card1 := 0; card1 < CardAmount; card1++ {
-		for card2 := card1 + 1; card2 < CardAmount; card2++ {
-			for card3 := card2 + 1; card3 < CardAmount; card3++ {
-				for card4 := card3 + 1; card4 < CardAmount; card4++ {
-					for card5 := card4 + 1; card5 < CardAmount; card5++ {
-						for card6 := card5 + 1; card6 < CardAmount; card6++ {
-							for card7 := card6 + 1; card7 < CardAmount; card7++ {
-								cards := [7]Card{
-									cardFromIndex(card1),
-									cardFromIndex(card2),
-									cardFromIndex(card3),
-									cardFromIndex(card4),
-									cardFromIndex(card5),
-									cardFromIndex(card6),
-									cardFromIndex(card7),
-								}
+// }
 
-								handValue := evalCards(cards[:])
-								handEquities[handValue.Hand]++
-							}
+func eval_5_2(boardCards []Card, playersCards [][]Card) [][HandAmount]float64 {
+
+	handEquities := [][HandAmount]float64{}
+
+	for range playersCards {
+		handEquities = append(handEquities, [HandAmount]float64{})
+	}
+
+	deadCards := []Card{}
+
+	for _, playerCards := range playersCards {
+		deadCards = append(deadCards, playerCards...)
+	}
+
+	aliveCards := []Card{}
+
+	for i := 0; i < CardAmount; i++ {
+		card := cardFromIndex(i)
+		isDead := false
+
+		for _, deadCard := range deadCards {
+			if card.Rank == deadCard.Rank && card.Suit == deadCard.Suit {
+				isDead = true
+				break
+			}
+		}
+
+		if !isDead {
+			aliveCards = append(aliveCards, card)
+		}
+	}
+
+	handValues := []HandValue{}
+
+	for range playersCards {
+		handValues = append(handValues, HandValue{})
+	}
+
+	cardsToEvaluate := [7]Card{}
+
+	for card1 := 0; card1 < len(aliveCards); card1++ {
+		for card2 := card1 + 1; card2 < len(aliveCards); card2++ {
+			for card3 := card2 + 1; card3 < len(aliveCards); card3++ {
+				for card4 := card3 + 1; card4 < len(aliveCards); card4++ {
+					for card5 := card4 + 1; card5 < len(aliveCards); card5++ {
+						cardsToEvaluate[2] = aliveCards[card1]
+						cardsToEvaluate[3] = aliveCards[card2]
+						cardsToEvaluate[4] = aliveCards[card3]
+						cardsToEvaluate[5] = aliveCards[card4]
+						cardsToEvaluate[6] = aliveCards[card5]
+
+						for i, playerCards := range playersCards {
+							cardsToEvaluate[0] = playerCards[0]
+							cardsToEvaluate[1] = playerCards[1]
+
+							handValues[i] = evalCards(cardsToEvaluate[:])
 						}
+
+						// Todo determine winner and add equity accordingly
 					}
 				}
 			}
