@@ -254,7 +254,7 @@ func main() {
 	start := time.Now()
 
 	if wildBoardCards == 5 && wildPlayersCards == 0 {
-		equities = eval_5_2(boardCards, playersCards)
+		equities = eval_5_0(boardCards, playersCards)
 	} else {
 		fmt.Println("Format not supported.")
 		os.Exit(1)
@@ -302,7 +302,7 @@ func main() {
 	}
 }
 
-func eval_5_2(boardCards []Card, playersCards [][]Card) [][HandAmount]float64 {
+func eval_5_0(boardCards []Card, playersCards [][]Card) [][HandAmount]float64 {
 
 	handEquities := [][HandAmount]float64{}
 
@@ -403,7 +403,6 @@ func eval_5_2(boardCards []Card, playersCards [][]Card) [][HandAmount]float64 {
 
 func evalCards(cards []Card) HandValue {
 	// Straight flush
-
 	suitAmounts := [SuitAmount]int{}
 	var flushSuit Suit
 	flushFound := false
@@ -464,7 +463,6 @@ func evalCards(cards []Card) HandValue {
 	}
 
 	// Four of a kind
-
 	for i := RankAmount - 1; i >= 0; i-- {
 		if rankAmounts[i] == 4 {
 			for j := RankAmount - 1; j >= 0; j-- {
@@ -479,7 +477,6 @@ func evalCards(cards []Card) HandValue {
 	}
 
 	// Full house
-
 	threeOfAKindFound := false
 	var threeOfAKindRank Rank
 
@@ -503,7 +500,6 @@ func evalCards(cards []Card) HandValue {
 	}
 
 	// Flush
-
 	if flushFound {
 		coveredFlushRanks := [RankAmount]bool{}
 
@@ -534,7 +530,6 @@ func evalCards(cards []Card) HandValue {
 	}
 
 	// Straight
-
 	consecutiveAmount := 0
 
 	for i := RankAmount - 1; i >= 0; i-- {
@@ -558,7 +553,6 @@ func evalCards(cards []Card) HandValue {
 	}
 
 	// Three of a kind
-
 	if threeOfAKindFound {
 		values := [3]Rank{}
 		values[2] = threeOfAKindRank
@@ -582,7 +576,6 @@ func evalCards(cards []Card) HandValue {
 	}
 
 	// Two pair
-
 	pairFound := false
 	var highestPairRank Rank
 
@@ -616,6 +609,7 @@ func evalCards(cards []Card) HandValue {
 		}
 	}
 
+	// Pair
 	if pairFound {
 		values := [4]Rank{}
 		values[3] = highestPairRank
@@ -638,6 +632,7 @@ func evalCards(cards []Card) HandValue {
 		}
 	}
 
+	// High card
 	values := [5]Rank{}
 	valuesIndex := 4
 
