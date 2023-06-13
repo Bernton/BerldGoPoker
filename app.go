@@ -72,6 +72,46 @@ func cardFromIndex(index int) Card {
 	return Card{Rank: Rank(rankIndex), Suit: Suit(suitIndex)}
 }
 
+func formatHandPadding(hand Hand) string {
+	switch hand {
+	case Pair:
+		fallthrough
+	case Flush:
+		return "\t\t\t"
+	case ThreeOfAKind:
+		return "\t"
+	default:
+		return "\t\t"
+	}
+}
+
+func formatHand(hand Hand) string {
+	switch hand {
+	case HighCard:
+		return "High card"
+	case Pair:
+		return "Pair"
+	case TwoPair:
+		return "Two pair"
+	case ThreeOfAKind:
+		return "Three of a kind"
+	case Straight:
+		return "Straight"
+	case Flush:
+		return "Flush"
+	case FullHouse:
+		return "Full house"
+	case FourOfAKind:
+		return "Four of a kind"
+	case StraightFlush:
+		return "Straight flush"
+	case RoyalFlush:
+		return "Royal flush"
+	default:
+		return ""
+	}
+}
+
 func rankByChar(rankChar rune) (Rank, error) {
 	switch rankChar {
 	case '2':
@@ -184,6 +224,7 @@ func main() {
 	}
 
 	playersInput := input[10:]
+	playerInputs := []string{}
 	playerAmount := len(playersInput) / 5
 
 	playersCards := [][]Card{}
@@ -196,6 +237,7 @@ func main() {
 			fmt.Println("Invalid character(s) found.")
 		}
 
+		playerInputs = append(playerInputs, playerInput)
 		playersCards = append(playersCards, playerCards)
 	}
 
@@ -222,21 +264,43 @@ func main() {
 
 	totalEquity := 0.0
 
-	for _, equity := range equities[0] {
-		totalEquity += equity
+	for _, equity := range equities {
+		for _, value := range equity {
+			totalEquity += value
+		}
 	}
 
 	equityPerMillisecond := totalEquity / float64(elapsed.Milliseconds())
 
 	fmt.Printf("Time: %d ms\n", elapsed.Milliseconds())
 	fmt.Printf("Speed: %.1f equity/ms\n", equityPerMillisecond)
-	fmt.Printf("%.1f\n", equities)
+	fmt.Printf("Total equity: %.1f\n\n", totalEquity)
+
+	for i, equity := range equities {
+		playerEquity := 0.0
+
+		for _, value := range equity {
+			playerEquity += value
+		}
+
+		playerRatioPercent := playerEquity / totalEquity * 100
+		fmt.Printf("Player %d - ", i+1)
+		fmt.Print(playerInputs[i])
+		fmt.Printf("\nTotal:\t\t\t%10.1f %14.8f%%\n", playerEquity, playerRatioPercent)
+
+		for i := 0; i < HandAmount; i++ {
+			hand := Hand(i)
+			ratioPercent := equity[i] / totalEquity * 100
+
+			fmt.Print(formatHand(hand))
+			fmt.Print(":")
+			fmt.Print(formatHandPadding(Hand(i)))
+			fmt.Printf("%10.1f %14.8f%%\n", equity[i], ratioPercent)
+		}
+
+		fmt.Println()
+	}
 }
-
-// func evalGeneral(boardCards [5]Card, playersCards []Card)
-// {
-
-// }
 
 func eval_5_2(boardCards []Card, playersCards [][]Card) [][HandAmount]float64 {
 
@@ -296,7 +360,38 @@ func eval_5_2(boardCards []Card, playersCards [][]Card) [][HandAmount]float64 {
 							handValues[i] = evalCards(cardsToEvaluate[:])
 						}
 
-						// Todo determine winner and add equity accordingly
+						winners := []int{0}
+
+						for i := 1; i < len(playersCards); i++ {
+							value := handValues[i]
+							winnerValue := handValues[winners[0]]
+
+							comparison := int(value.Hand) - int(winnerValue.Hand)
+
+							if comparison == 0 {
+								for j := len(value.Values) - 1; j >= 0; j-- {
+									comparison = int(value.Values[j]) - int(winnerValue.Values[j])
+
+									if comparison != 0 {
+										break
+									}
+								}
+							}
+
+							if comparison > 0 {
+								winners = []int{i}
+							} else if comparison == 0 {
+								winners = append(winners, i)
+							}
+						}
+
+						winnerEquity := 1.0 / float64(len(winners))
+
+						for i := 0; i < len(winners); i++ {
+							winnerIndex := winners[i]
+							handIndex := int(handValues[winnerIndex].Hand)
+							handEquities[winnerIndex][handIndex] += winnerEquity
+						}
 					}
 				}
 			}
@@ -523,7 +618,7 @@ func evalCards(cards []Card) HandValue {
 
 	if pairFound {
 		values := [4]Rank{}
-		values[3] = threeOfAKindRank
+		values[3] = highestPairRank
 		valuesIndex := 2
 
 		for i := RankAmount - 1; i >= 0; i-- {
